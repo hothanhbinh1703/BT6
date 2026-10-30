@@ -5,13 +5,33 @@ const RESOURCE_NAME = "MindX Mockup Server";
 // Dữ liệu sau khi tải về sẽ nằm trong biến này
 let db = null;
 
+// Tìm object có chứa users/tasks dù dữ liệu bị bọc trong mảng hoặc root
+function findDb(data) {
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = findDb(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (data && typeof data === "object") {
+    if (data.users && data.tasks) return data;
+    if (data.root) return findDb(data.root);
+    if (data.data) return findDb(data.data);
+  }
+  return null;
+}
+
 // Tải dữ liệu từ API (chạy 1 lần đầu)
 async function loadData() {
-  const res = await fetch(`${DOMAIN_APP}/api/resources?apiKey=${API_KEY}`);
+  const url = `${DOMAIN_APP}/api/resources/${encodeURIComponent(RESOURCE_NAME)}?apiKey=${API_KEY}`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`Lỗi ${res.status}`);
   const json = await res.json();
-  const resource = json.data.resources.find((r) => r.name === RESOURCE_NAME);
-  db = resource.data; // { users, taskStatus, flags, tasks }
+  console.log("json:", json); // xem cấu trúc thật nếu còn lỗi
+
+  db = findDb(json.data) || findDb(json);
+  if (!db) throw new Error("Không tìm thấy users/tasks trong dữ liệu, xem console.log ở trên");
 }
 
 // ===== 1. Lấy danh sách =====
